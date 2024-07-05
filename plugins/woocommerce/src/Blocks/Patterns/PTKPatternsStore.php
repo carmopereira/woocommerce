@@ -173,6 +173,25 @@ class PTKPatternsStore {
 		delete_transient( self::TRANSIENT_NAME );
 	}
 
+
+	/**
+	 * Searches for the first element within an array that satisfies the provided callback function and returns its index.
+	 * If no element satisfies the callback function, returns -1.
+	 *
+	 * @param array    $values The array to search through.
+	 * @param callable $callback The callback function to execute for each element.
+	 *                           The callback function should return true to indicate the element satisfies the condition.
+	 * @return int The index of the first element that satisfies the condition; -1 if no such element is found.
+	 */
+	private function find_index( $values, $callback ) {
+		foreach ( $values as $index => $element ) {
+			if ( $callback( $element ) ) {
+				return $index;
+			}
+		}
+		return -1;
+	}
+
 	/**
 	 * Reset the cached patterns and fetch them again from the PTK API.
 	 *
@@ -184,6 +203,12 @@ class PTKPatternsStore {
 		}
 
 		$this->flush_cached_patterns();
+
+		$dotcom_patterns = $this->ptk_client->fetch_patterns(
+			array(
+				'site' => '174455321',
+			)
+		);
 
 		$patterns = $this->ptk_client->fetch_patterns(
 			array(
@@ -213,7 +238,34 @@ class PTKPatternsStore {
 			return;
 		}
 
-		$patterns = $this->filter_patterns( $patterns, self::EXCLUDED_PATTERNS );
+		$patterns        = $this->filter_patterns( $patterns, self::EXCLUDED_PATTERNS );
+		$dotcom_patterns = $this->filter_patterns( $dotcom_patterns, self::EXCLUDED_PATTERNS );
+
+		usort(
+			$patterns,
+			function ( $a, $b ) use ( $dotcom_patterns ) {
+
+				$index_a = $this->find_index(
+					$dotcom_patterns,
+					function ( $element ) use ( $a ) {
+						return str_contains( $element['name'], $a['name'] );
+					}
+				);
+
+				$index_b = $this->find_index(
+					$dotcom_patterns,
+					function ( $element ) use ( $b ) {
+						return str_contains( $element['name'], $b['name'] );
+					}
+				);
+
+				if ( $index_a === $index_b ) {
+					return 0;
+				}
+				return ( $index_a < $index_b ) ? -1 : 1;
+			}
+		);
+
 		$patterns = $this->map_categories( $patterns );
 
 		set_transient( self::TRANSIENT_NAME, $patterns );
