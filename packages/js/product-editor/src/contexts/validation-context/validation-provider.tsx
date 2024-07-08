@@ -66,13 +66,19 @@ export function ValidationProvider< T >( {
 			return result.then( ( error ) => {
 				setErrors( ( currentErrors ) => ( {
 					...currentErrors,
-					[ validatorId ]: error,
+					[ validatorId ]: { validatorId, ...error },
 				} ) );
 				return error;
 			} );
 		}
 
 		return Promise.resolve( undefined );
+	}
+
+	async function getFieldByValidatorId(
+		_validatorId: string
+	): Promise< HTMLElement > {
+		return fieldRefs.current[ _validatorId ];
 	}
 
 	async function validateAll(
@@ -104,6 +110,7 @@ export function ValidationProvider< T >( {
 		<ValidationContext.Provider
 			value={ {
 				errors,
+				getFieldByValidatorId,
 				registerValidator,
 				unRegisterValidator,
 				validateField,
